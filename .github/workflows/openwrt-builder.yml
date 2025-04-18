@@ -70,13 +70,23 @@ jobs:
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
-    - name: Load custom configuration
+    - name: Load custom configuration via SSH
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        SSH_HOST: ${{ secrets.SSH_HOST }}
+        SSH_USER: ${{ secrets.SSH_USER }}
       run: |
-        [ -e files ] && mv files openwrt/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        chmod +x $DIY_P2_SH
-        cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P2_SH
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+        ssh "$SSH_USER@$SSH_HOST" << 'EOF'
+          cd /path/to/openwrt
+          [ -e files ] && mv files openwrt/files
+          [ -e .config ] && mv .config openwrt/.config
+          chmod +x diy-part2.sh
+          ./diy-part2.sh
+        EOF
 
     - name: Download package
       id: package
